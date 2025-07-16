@@ -1,0 +1,606 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  Search, 
+  Plus, 
+  Edit, 
+  Trash2, 
+  Download, 
+  Upload, 
+  Settings, 
+  User, 
+  LogOut,
+  Eye,
+  Filter,
+  Save,
+  X,
+  Users,
+  Database,
+  FileText,
+  ChevronDown,
+  ChevronRight
+} from 'lucide-react';
+
+const PlanilhaSystem = () => {
+  const [currentUser, setCurrentUser] = useState({ name: 'João Silva', role: 'admin' });
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [selectedTable, setSelectedTable] = useState(null);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [showTableModal, setShowTableModal] = useState(false);
+  const [showFieldModal, setShowFieldModal] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [expandedTables, setExpandedTables] = useState({});
+
+  // Mock data - seria substituído por calls para API
+  const [tables, setTables] = useState([
+    {
+      id: 1,
+      name: 'Vendas',
+      description: 'Controle de vendas mensais',
+      fields: [
+        { id: 1, name: 'data', type: 'date', label: 'Data' },
+        { id: 2, name: 'cliente', type: 'text', label: 'Cliente' },
+        { id: 3, name: 'produto', type: 'text', label: 'Produto' },
+        { id: 4, name: 'valor', type: 'number', label: 'Valor' },
+        { id: 5, name: 'status', type: 'select', label: 'Status', options: ['Pendente', 'Concluído', 'Cancelado'] }
+      ],
+      records: [
+        { id: 1, data: '2024-01-15', cliente: 'Empresa A', produto: 'Produto X', valor: 1500.00, status: 'Concluído' },
+        { id: 2, data: '2024-01-16', cliente: 'Empresa B', produto: 'Produto Y', valor: 2300.00, status: 'Pendente' }
+      ]
+    },
+    {
+      id: 2,
+      name: 'Funcionários',
+      description: 'Cadastro de funcionários',
+      fields: [
+        { id: 1, name: 'nome', type: 'text', label: 'Nome' },
+        { id: 2, name: 'cargo', type: 'text', label: 'Cargo' },
+        { id: 3, name: 'salario', type: 'number', label: 'Salário' },
+        { id: 4, name: 'departamento', type: 'select', label: 'Departamento', options: ['TI', 'RH', 'Vendas', 'Marketing'] }
+      ],
+      records: [
+        { id: 1, nome: 'Maria Santos', cargo: 'Desenvolvedor', salario: 5000.00, departamento: 'TI' },
+        { id: 2, nome: 'José Silva', cargo: 'Analista', salario: 4000.00, departamento: 'RH' }
+      ]
+    }
+  ]);
+
+  const [users, setUsers] = useState([
+    { id: 1, name: 'João Silva', email: 'joao@empresa.com', role: 'admin' },
+    { id: 2, name: 'Maria Santos', email: 'maria@empresa.com', role: 'user' }
+  ]);
+
+  const [editingRecord, setEditingRecord] = useState(null);
+  const [formData, setFormData] = useState({});
+
+  // Dashboard Component
+  const Dashboard = () => (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center">
+            <Database className="h-8 w-8 text-blue-600" />
+            <div className="ml-4">
+              <h3 className="text-lg font-semibold">Total de Tabelas</h3>
+              <p className="text-3xl font-bold text-gray-900">{tables.length}</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center">
+            <FileText className="h-8 w-8 text-green-600" />
+            <div className="ml-4">
+              <h3 className="text-lg font-semibold">Total de Registros</h3>
+              <p className="text-3xl font-bold text-gray-900">
+                {tables.reduce((acc, table) => acc + table.records.length, 0)}
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center">
+            <Users className="h-8 w-8 text-purple-600" />
+            <div className="ml-4">
+              <h3 className="text-lg font-semibold">Usuários Ativos</h3>
+              <p className="text-3xl font-bold text-gray-900">{users.length}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow">
+        <div className="p-6 border-b">
+          <h2 className="text-xl font-semibold">Suas Tabelas</h2>
+        </div>
+        <div className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {tables.map(table => (
+              <div key={table.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-semibold">{table.name}</h3>
+                  <button
+                    onClick={() => {
+                      setSelectedTable(table);
+                      setActiveTab('table');
+                    }}
+                    className="text-blue-600 hover:text-blue-800"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </button>
+                </div>
+                <p className="text-sm text-gray-600 mb-2">{table.description}</p>
+                <div className="flex justify-between text-sm text-gray-500">
+                  <span>{table.fields.length} campos</span>
+                  <span>{table.records.length} registros</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Table View Component
+  const TableView = ({ table }) => {
+    const [currentRecords, setCurrentRecords] = useState(table.records);
+    const [showRecordModal, setShowRecordModal] = useState(false);
+
+    const handleSaveRecord = () => {
+      if (editingRecord) {
+        // Update existing record
+        const updatedRecords = currentRecords.map(record => 
+          record.id === editingRecord.id ? { ...formData, id: editingRecord.id } : record
+        );
+        setCurrentRecords(updatedRecords);
+        setEditingRecord(null);
+      } else {
+        // Add new record
+        const newRecord = { ...formData, id: Date.now() };
+        setCurrentRecords([...currentRecords, newRecord]);
+      }
+      setFormData({});
+      setShowRecordModal(false);
+    };
+
+    const handleDeleteRecord = (recordId) => {
+      setCurrentRecords(currentRecords.filter(record => record.id !== recordId));
+    };
+
+    const handleEditRecord = (record) => {
+      setEditingRecord(record);
+      setFormData(record);
+      setShowRecordModal(true);
+    };
+
+    const filteredRecords = currentRecords.filter(record => {
+      return Object.values(record).some(value => 
+        String(value).toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    });
+
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold">{table.name}</h2>
+            <p className="text-gray-600">{table.description}</p>
+          </div>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => {
+                setEditingRecord(null);
+                setFormData({});
+                setShowRecordModal(true);
+              }}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Novo Registro</span>
+            </button>
+            <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center space-x-2">
+              <Download className="h-4 w-4" />
+              <span>Exportar</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow">
+          <div className="p-4 border-b">
+            <div className="flex justify-between items-center">
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Pesquisar registros..."
+                  className="pl-10 pr-4 py-2 border rounded-lg w-64"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <div className="flex space-x-2">
+                <button className="border px-3 py-2 rounded-lg hover:bg-gray-50 flex items-center space-x-2">
+                  <Filter className="h-4 w-4" />
+                  <span>Filtrar</span>
+                </button>
+                <button
+                  onClick={() => setShowFieldModal(true)}
+                  className="border px-3 py-2 rounded-lg hover:bg-gray-50 flex items-center space-x-2"
+                >
+                  <Settings className="h-4 w-4" />
+                  <span>Campos</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  {table.fields.map(field => (
+                    <th key={field.id} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      {field.label}
+                    </th>
+                  ))}
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Ações
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredRecords.map(record => (
+                  <tr key={record.id} className="hover:bg-gray-50">
+                    {table.fields.map(field => (
+                      <td key={field.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {field.type === 'number' ? 
+                          `R$ ${parseFloat(record[field.name] || 0).toFixed(2)}` : 
+                          record[field.name]
+                        }
+                      </td>
+                    ))}
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex justify-end space-x-2">
+                        <button
+                          onClick={() => handleEditRecord(record)}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteRecord(record.id)}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Record Modal */}
+        {showRecordModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-md">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">
+                  {editingRecord ? 'Editar Registro' : 'Novo Registro'}
+                </h3>
+                <button
+                  onClick={() => setShowRecordModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              
+              <form onSubmit={(e) => { e.preventDefault(); handleSaveRecord(); }}>
+                <div className="space-y-4">
+                  {table.fields.map(field => (
+                    <div key={field.id}>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        {field.label}
+                      </label>
+                      {field.type === 'select' ? (
+                        <select
+                          value={formData[field.name] || ''}
+                          onChange={(e) => setFormData({...formData, [field.name]: e.target.value})}
+                          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option value="">Selecione...</option>
+                          {field.options.map(option => (
+                            <option key={option} value={option}>{option}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type={field.type}
+                          value={formData[field.name] || ''}
+                          onChange={(e) => setFormData({...formData, [field.name]: e.target.value})}
+                          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          step={field.type === 'number' ? '0.01' : undefined}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="flex justify-end space-x-2 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => setShowRecordModal(false)}
+                    className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    Salvar
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Tables Management Component
+  const TablesManagement = () => (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">Gerenciar Tabelas</h2>
+        <button
+          onClick={() => setShowTableModal(true)}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2"
+        >
+          <Plus className="h-4 w-4" />
+          <span>Nova Tabela</span>
+        </button>
+      </div>
+
+      <div className="bg-white rounded-lg shadow">
+        <div className="p-6">
+          <div className="space-y-4">
+            {tables.map(table => (
+              <div key={table.id} className="border rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <button
+                      onClick={() => setExpandedTables({
+                        ...expandedTables,
+                        [table.id]: !expandedTables[table.id]
+                      })}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      {expandedTables[table.id] ? 
+                        <ChevronDown className="h-4 w-4" /> : 
+                        <ChevronRight className="h-4 w-4" />
+                      }
+                    </button>
+                    <div>
+                      <h3 className="font-semibold">{table.name}</h3>
+                      <p className="text-sm text-gray-600">{table.description}</p>
+                    </div>
+                  </div>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => {
+                        setSelectedTable(table);
+                        setActiveTab('table');
+                      }}
+                      className="text-blue-600 hover:text-blue-800"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
+                    <button className="text-gray-600 hover:text-gray-800">
+                      <Edit className="h-4 w-4" />
+                    </button>
+                    <button className="text-red-600 hover:text-red-800">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+                
+                {expandedTables[table.id] && (
+                  <div className="mt-4 pl-7">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <h4 className="font-medium mb-2">Campos ({table.fields.length})</h4>
+                        <div className="space-y-1">
+                          {table.fields.map(field => (
+                            <div key={field.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                              <span className="text-sm">{field.label}</span>
+                              <span className="text-xs text-gray-500">{field.type}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <h4 className="font-medium mb-2">Estatísticas</h4>
+                        <div className="space-y-1 text-sm">
+                          <div className="flex justify-between">
+                            <span>Registros:</span>
+                            <span>{table.records.length}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Campos:</span>
+                            <span>{table.fields.length}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Users Management Component
+  const UsersManagement = () => (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">Gerenciar Usuários</h2>
+        <button
+          onClick={() => setShowUserModal(true)}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2"
+        >
+          <Plus className="h-4 w-4" />
+          <span>Novo Usuário</span>
+        </button>
+      </div>
+
+      <div className="bg-white rounded-lg shadow">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Nome
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Email
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Função
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Ações
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {users.map(user => (
+                <tr key={user.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
+                        <User className="h-4 w-4 text-gray-500" />
+                      </div>
+                      <div className="ml-3">
+                        <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {user.email}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                      user.role === 'admin' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                    }`}>
+                      {user.role === 'admin' ? 'Administrador' : 'Usuário'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <div className="flex justify-end space-x-2">
+                      <button className="text-blue-600 hover:text-blue-900">
+                        <Edit className="h-4 w-4" />
+                      </button>
+                      <button className="text-red-600 hover:text-red-900">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Main App Component
+  return (
+    <div className="min-h-screen bg-gray-100">
+      {/* Header */}
+      <header className="bg-white shadow">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-6">
+            <div className="flex items-center">
+              <Database className="h-8 w-8 text-blue-600 mr-3" />
+              <h1 className="text-2xl font-bold text-gray-900">Sistema de Planilhas</h1>
+            </div>
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <User className="h-5 w-5 text-gray-500" />
+                <span className="text-sm text-gray-700">{currentUser.name}</span>
+              </div>
+              <button
+                onClick={() => setShowLoginModal(true)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <LogOut className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Navigation */}
+      <nav className="bg-white border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex space-x-8">
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className={`py-4 px-2 border-b-2 font-medium text-sm ${
+                activeTab === 'dashboard' 
+                  ? 'border-blue-500 text-blue-600' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Dashboard
+            </button>
+            <button
+              onClick={() => setActiveTab('tables')}
+              className={`py-4 px-2 border-b-2 font-medium text-sm ${
+                activeTab === 'tables' 
+                  ? 'border-blue-500 text-blue-600' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Tabelas
+            </button>
+            {currentUser.role === 'admin' && (
+              <button
+                onClick={() => setActiveTab('users')}
+                className={`py-4 px-2 border-b-2 font-medium text-sm ${
+                  activeTab === 'users' 
+                    ? 'border-blue-500 text-blue-600' 
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Usuários
+              </button>
+            )}
+          </div>
+        </div>
+      </nav>
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="px-4 py-6 sm:px-0">
+          {activeTab === 'dashboard' && <Dashboard />}
+          {activeTab === 'table' && selectedTable && <TableView table={selectedTable} />}
+          {activeTab === 'tables' && <TablesManagement />}
+          {activeTab === 'users' && currentUser.role === 'admin' && <UsersManagement />}
+        </div>
+      </main>
+    </div>
+  );
+};
